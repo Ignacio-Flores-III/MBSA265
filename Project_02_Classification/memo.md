@@ -83,3 +83,7 @@ This model is strictly an academic demonstration and is **not clinically viable*
 
 * **Numerical Stability:** To avoid overflow/underflow when evaluating exponents and log losses, `scipy`/`numpy` stable expansions (`np.logaddexp`) were implemented.
 * **Disjoint Index Integrity:** Stratification was executed in two explicit steps (`train_test_split` on row indices), and validated with assert statements to confirm zero data leakage.
+
+Unregularized vs. Regularized Formulation:
+In Scikit-learn, C=np.inf disables the penalty. Testing $L_2$-penalty strengths (e.g., $C \in \{0.01, 0.1, 1.0, 10.0\}$) shows how ridge regularization shrinks $\beta_1$ and $\beta_2$ toward zero.   Feature Collinearity & Shrinkage:
+Because mean radius has a strong predictive signal ($\beta_1 \approx 3.66$), imposing an $L_2$ penalty reduces parameter variance and limits potential overfitting to extreme train-partition boundaries.
