@@ -10,16 +10,16 @@
   "purpose": "Educational inference demonstration; not for clinical use.",
   "dataset": "scikit-learn Wisconsin Diagnostic Breast Cancer",
   "training": "80% stratified split, random_state=42; C=1.0",
-  "python": "3.14.3",
-  "numpy": "2.5.2",
-  "scikit_learn": "1.9.1",
-  "joblib": "1.6.0",
+  "python": "3.9.6",
+  "numpy": "2.0.2",
+  "scikit_learn": "1.6.1",
+  "joblib": "1.5.3",
   "example": {
     "request": {
       "mean_radius": 14.0,
       "mean_texture": 20.0
     },
-    "probability_class_1": 0.32656351807804024,
+    "probability_class_1": 0.3265635180780402,
     "predicted_class": 0
   }
 }
