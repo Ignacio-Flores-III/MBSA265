@@ -339,3 +339,8 @@ Executed on the local Windows Python 3.14.3 environment:
 - macOS setup and execution have not been run here.
 
 Do not claim a platform or container was tested based solely on instructions.
+
+### macOS & Docker Verification (Completed)
+- **Unit Tests (`pytest`):** 6/6 passed in 1.38s (verified health, schema rejection, threshold boundary, pipeline weights, and stateless scaler).
+- **Smoke Check (`check_api.py`):** PASSED against both local Uvicorn and Docker container (`probability_class_1 = 0.3265635180780402`, predicted class `0` / `benign`).
+- **Docker Container:** Built image `breast-cancer-api:v1` and verified live container `cancer-api` running as user `10001` on port 8000.
