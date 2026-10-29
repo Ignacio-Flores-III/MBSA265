@@ -1,0 +1,13 @@
+Feature Name,Business Label,Data Type,Unit,Null Count,Unique Values,Business Definition
+IDpol,Policy ID,float64,Key ID,0,678013,Unique policy identification key assigned to contract.
+ClaimNb,Claim Count,int64,Count,0,11,Total insurance claims filed during policy coverage period.
+Exposure,Risk Exposure,float64,Years (0.0-1.0),0,181,"Fraction of year policy was active (e.g., 0.50 = 6 months coverage)."
+Area,Area Risk Code,object,Ordinal Category,0,6,"Geographic risk code of policyholder address (A = rural, F = urban)."
+VehPower,Engine Power,int64,Tax HP,0,12,Fiscal power rating category of vehicle engine.
+VehAge,Vehicle Age,int64,Years,0,78,Age of the insured vehicle in years.
+DrivAge,Driver Age,int64,Years,0,83,Age of the primary insured driver in years.
+BonusMalus,Claim History Index,int64,Index Score (50-350),0,115,Regulatory driver risk score (< 100: safe discount; > 100: claim surcharge).
+VehBrand,Brand Class,object,Category Code,0,11,Anonymized vehicle manufacturer/brand classification code.
+VehGas,Fuel Type,object,Binary Class,0,2,Engine fuel type used (Diesel vs. Regular/Gasoline).
+Density,Population Density,int64,People / km2,0,1607,Population density of policyholder’s municipality.
+Region,Administrative Region,object,Region Code,0,22,French administrative region code corresponding to residency location.
