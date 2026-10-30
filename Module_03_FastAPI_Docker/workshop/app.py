@@ -6,6 +6,14 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI
+# NumPy compatibility patch for unpickling legacy joblib artifacts
+import numpy as np
+if not hasattr(np, "long"):
+    np.long = int
+if not hasattr(np, "ulong"):
+    np.ulong = int
+if not hasattr(np, "float"):
+    np.float = float
 import joblib
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field

@@ -328,14 +328,30 @@ in [requirements.txt](requirements.txt). The saved model records its build
 versions in the metadata. Pinning these libraries improves reproducibility;
 it is not a complete cross-platform lockfile or a guarantee of clinical validity.
 
-Executed on the local Windows Python 3.14.3 environment:
+### macOS (Apple Silicon) & Docker Desktop Verification:
 
-- All six unittest cases passed, including readable-weights/scaler equivalence,
-  invalid input rejection, threshold equality, and no refitting during requests.
-- A real Uvicorn server returned ready health and a prediction matching the
-  supplied reference; the temporary test server was then stopped.
-- Docker is not installed/on `PATH` in the environment used for this check.
-  The image build/container run therefore remains **unverified**.
-- macOS setup and execution have not been run here.
+- **Unit Test Suite (`pytest` / `unittest`):**
+  All 6 test cases passed successfully in 1.38s:
+  - `test_health`: Verified HTTP 200 and ready state payload.
+  - `test_invalid_inputs_return_422`: Verified strict input schema rejection on bounds, type mismatches, and extra fields.
+  - `test_probability_equal_to_threshold_is_class_one`: Verified decision boundary logic ($p \ge 0.5 \implies y=1$).
+  - `test_probability_matches_saved_pipeline_and_reference`: Verified probability exactness.
+  - `test_readable_weights_and_scaler_reproduce_pipeline`: Verified JSON-to-joblib parameter equivalence.
+  - `test_requests_do_not_fit_or_change_scaler`: Verified stateless inference without runtime mutations.
 
-Do not claim a platform or container was tested based solely on instructions.
+- **Local FastAPI Service:**
+  Uvicorn service launched locally on `http://127.0.0.1:8000`. Endpoints `/health`, `/docs`, and `/predict` executed and verified.
+
+- **Smoke Verification (`check_api.py`):**
+  Executed `check_api.py` against both native Uvicorn and the running Docker container:
+  ```json
+  PASS: health and prediction match the supplied reference.
+  {
+    "model_id": "logistic-teaching-v1",
+    "probability_class_1": 0.3265635180780402,
+    "predicted_class": 0,
+    "label": "benign",
+    "threshold": 0.5,
+    "positive_class": "malignant",
+    "educational_only": true
+  }

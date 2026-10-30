@@ -14,25 +14,57 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.dummy import DummyClassifier
-from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score, log_loss
+from sklearn.metrics import (
+    confusion_matrix,
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    log_loss,
+    roc_curve,
+    roc_auc_score,
+    precision_recall_curve,
+)
 
 # Resolve paths relative to script location
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
+
 def sigmoid(z):
     # Numerically stable sigmoid using exp(-logaddexp(0, -z))
     return np.exp(-np.logaddexp(0, -z))
+
 
 def binary_cross_entropy(z, y):
     # Numerically stable BCE using mean(logaddexp(0, z) - y*z)
     return np.mean(np.logaddexp(0, z) - y * z)
 
+
+def predict_sample(mean_radius: float, mean_texture: float, scaler: StandardScaler, beta: np.ndarray, threshold: float = 0.60):
+    """Standardizes raw clinical measurements using the fitted training scaler
+
+    and evaluates the model's predicted probability and classification.
+    """
+    raw_point = np.array([[mean_radius, mean_texture]])
+    scaled_point = scaler.transform(raw_point)
+    aug_point = np.hstack([np.ones((1, 1)), scaled_point])
+    
+    prob = sigmoid(aug_point @ beta)[0]
+    verdict = "Malignant" if prob >= threshold else "Benign"
+    
+    print(f"\n--- Clinical Sample Assessment (Threshold = {threshold:.2f}) ---")
+    print(f"Raw Input:       Radius = {mean_radius:.2f}, Texture = {mean_texture:.2f}")
+    print(f"Standardized:    Radius = {scaled_point[0, 0]:.3f}, Texture = {scaled_point[0, 1]:.3f}")
+    print(f"Malignancy Prob: {prob * 100:.2f}%")
+    print(f"Classification:  {verdict}")
+
+
 def main():
-    print("="*70)
+    print("=" * 70)
     print("PART 1: INTERACTIVE EXPLORER CASE CHECKS")
-    print("="*70)
+    print("=" * 70)
     cases = [
         {"case": "A", "b0": -1.0, "b1": 0.8, "x": 2.0, "thresh": 0.50},
         {"case": "B", "b0": -1.0, "b1": 0.8, "x": 2.0, "thresh": 0.70},
@@ -45,9 +77,9 @@ def main():
         pred = 1 if p >= c["thresh"] else 0
         print(f"Case {c['case']}: z = {z:7.4f}, p = {p:6.4f}, Threshold = {c['thresh']:.2f} -> Class {pred}")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("PART 2: LEAKAGE-FREE EXPERIMENT PREPARATION")
-    print("="*70)
+    print("=" * 70)
     data = load_breast_cancer(as_frame=True)
     df = data.frame
     
@@ -87,9 +119,9 @@ def main():
     y_val = y[val_idx]
     y_test = y[test_idx]
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("PART 3: NUMPY LOGISTIC REGRESSION VIA GRADIENT DESCENT")
-    print("="*70)
+    print("=" * 70)
     # Augment feature matrices with leading column of ones
     X_train_aug = np.hstack([np.ones((len(X_train), 1)), X_train])
     X_val_aug = np.hstack([np.ones((len(X_val), 1)), X_val])
@@ -134,9 +166,9 @@ def main():
     plt.close()
     print(f"Saved: {loss_plot_path}")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("PART 4: SCIKIT-LEARN REFERENCE & BASELINE COMPARISON")
-    print("="*70)
+    print("=" * 70)
     # Unregularized Scikit-learn model
     sklearn_model = LogisticRegression(C=np.inf, solver="lbfgs", max_iter=10000, tol=1e-9)
     sklearn_model.fit(X_train, y_train)
@@ -158,9 +190,9 @@ def main():
     mean_abs_diff = np.mean(np.abs(val_probs_np - val_probs_sk))
     print(f"Mean Absolute Difference (Validation Probabilities): {mean_abs_diff:.6e}")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("PART 5: THRESHOLD SELECTION & FINAL EVALUATION")
-    print("="*70)
+    print("=" * 70)
     candidate_thresholds = [0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80]
     thresh_records = []
 
@@ -180,7 +212,7 @@ def main():
             "accuracy": acc,
             "precision": prec,
             "recall": rec,
-            "f1": f1
+            "f1": f1,
         })
 
     thresh_df = pd.DataFrame(thresh_records)
@@ -232,7 +264,7 @@ def main():
                 "precision": prec,
                 "recall": rec,
                 "f1": f1,
-                "log_loss": ll
+                "log_loss": ll,
             })
 
     results_df = pd.DataFrame(results_records)
@@ -240,7 +272,84 @@ def main():
     results_df.to_csv(results_csv_path, index=False)
     print(f"\nExported 10 assignment configurations to: {results_csv_path}")
     print(results_df.to_string(index=False))
+
+    # =========================================================================
+    # EXTENSION 1: Decision Boundary & Probability Landscape Plot
+    # =========================================================================
+    print("\n" + "=" * 70)
+    print("GENERATING PORTFOLIO VISUALIZATIONS")
+    print("=" * 70)
+    x1_min, x1_max = X_test[:, 0].min() - 0.6, X_test[:, 0].max() + 0.6
+    x2_min, x2_max = X_test[:, 1].min() - 0.6, X_test[:, 1].max() + 0.6
+    xx1, xx2 = np.meshgrid(np.linspace(x1_min, x1_max, 300), np.linspace(x2_min, x2_max, 300))
+    grid_aug = np.c_[np.ones(xx1.size), xx1.ravel(), xx2.ravel()]
+    grid_probs = sigmoid(grid_aug @ beta).reshape(xx1.shape)
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    contour = ax.contourf(xx1, xx2, grid_probs, levels=25, cmap="coolwarm", alpha=0.35)
+    cbar = fig.colorbar(contour, ax=ax)
+    cbar.set_label("Predicted Malignancy Probability", fontsize=10)
+
+    # Decision boundary lines: z = log(tau / (1 - tau))
+    z_05 = np.log(0.50 / (1 - 0.50))
+    z_sel = np.log(best_threshold / (1 - best_threshold))
+    line_05 = -(beta[0] - z_05 + beta[1] * xx1[0, :]) / beta[2]
+    line_sel = -(beta[0] - z_sel + beta[1] * xx1[0, :]) / beta[2]
+
+    ax.plot(xx1[0, :], line_05, color="#2c3e50", linestyle="--", lw=2, label="Default Boundary (tau = 0.50)")
+    ax.plot(xx1[0, :], line_sel, color="#8e44ad", linestyle="-", lw=2.5, label=f"Selected Boundary (tau = {best_threshold:.2f})")
+
+    ax.scatter(X_test[y_test == 0, 0], X_test[y_test == 0, 1], color="#2980b9", edgecolors="k", label="Actual Benign (0)", s=45, alpha=0.9)
+    ax.scatter(X_test[y_test == 1, 0], X_test[y_test == 1, 1], color="#c0392b", edgecolors="k", label="Actual Malignant (1)", s=45, alpha=0.9)
+
+    ax.set_title("Test Set Decision Boundaries & Probability Landscape", fontsize=13, pad=12)
+    ax.set_xlabel("Mean Radius (Standardized)", fontsize=11)
+    ax.set_ylabel("Mean Texture (Standardized)", fontsize=11)
+    ax.set_ylim(x2_min, x2_max)
+    ax.legend(loc="upper left", framealpha=0.9)
+    plt.tight_layout()
+    db_path = os.path.join(REPORTS_DIR, "decision_boundary.png")
+    plt.savefig(db_path, dpi=300)
+    plt.close()
+    print(f"Saved: {db_path}")
+
+    # =========================================================================
+    # EXTENSION 2: Diagnostic ROC and Precision-Recall Curves
+    # =========================================================================
+    fpr, tpr, _ = roc_curve(y_test, test_probs_np)
+    roc_auc = roc_auc_score(y_test, test_probs_np)
+    prec_vals, rec_vals, _ = precision_recall_curve(y_test, test_probs_np)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
+    
+    # ROC Curve
+    ax1.plot(fpr, tpr, color="#2980b9", lw=2.5, label=f"NumPy Logistic (AUC = {roc_auc:.4f})")
+    ax1.plot([0, 1], [0, 1], color="grey", linestyle="--")
+    ax1.set_title("Receiver Operating Characteristic (ROC)", fontsize=12)
+    ax1.set_xlabel("False Positive Rate (1 - Specificity)")
+    ax1.set_ylabel("True Positive Rate (Recall)")
+    ax1.grid(True, alpha=0.3)
+    ax1.legend(loc="lower right")
+
+    # Precision-Recall Curve
+    ax2.plot(rec_vals, prec_vals, color="#e67e22", lw=2.5, label="Precision-Recall Curve")
+    ax2.set_title("Precision-Recall Curve", fontsize=12)
+    ax2.set_xlabel("Recall (Sensitivity)")
+    ax2.set_ylabel("Precision (PPV)")
+    ax2.grid(True, alpha=0.3)
+    ax2.legend(loc="lower left")
+
+    plt.tight_layout()
+    roc_pr_path = os.path.join(REPORTS_DIR, "roc_pr_curves.png")
+    plt.savefig(roc_pr_path, dpi=300)
+    plt.close()
+    print(f"Saved: {roc_pr_path}")
+
     print("\nRun complete. All outputs generated successfully.")
+    
+    # Demonstrative inference call
+    predict_sample(mean_radius=18.5, mean_texture=21.0, scaler=scaler, beta=beta, threshold=best_threshold)
+
 
 if __name__ == "__main__":
     main()
